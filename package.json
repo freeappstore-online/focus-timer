@@ -1,0 +1,14 @@
+{
+  "name": "focus-timer",
+  "private": true,
+  "packageManager": "pnpm@10.30.3",
+  "engines": { "node": ">=22" },
+  "pnpm": { "onlyBuiltDependencies": ["esbuild"] },
+  "scripts": {
+    "dev": "pnpm --filter @focus-timer/web dev",
+    "build": "pnpm --filter @focus-timer/web build",
+    "preview": "pnpm --filter @focus-timer/web preview",
+    "typecheck": "pnpm --filter @focus-timer/web exec tsc -b",
+    "test": "pnpm --filter @focus-timer/web test"
+  }
+}
