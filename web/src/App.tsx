@@ -30,19 +30,17 @@ const MONTH_NAMES = [
   "July","August","September","October","November","December",
 ];
 
-// Pastel colours for reminders
 const COLORS = [
-  "#b497f5", // lavender
-  "#f4a7c3", // pink
-  "#7dd3c8", // mint
-  "#f9c784", // peach
-  "#93d4f0", // sky blue
-  "#a8e6a3", // sage green
-  "#f7a97a", // coral
-  "#c5b4e8", // periwinkle
+  "#b497f5",
+  "#f4a7c3",
+  "#7dd3c8",
+  "#f9c784",
+  "#93d4f0",
+  "#a8e6a3",
+  "#f7a97a",
+  "#c5b4e8",
 ];
 
-// Pastel bg tints for each colour (20% opacity version for backgrounds)
 const COLOR_BG: Record<string, string> = {
   "#b497f5": "#b497f530",
   "#f4a7c3": "#f4a7c330",
@@ -62,15 +60,14 @@ const NAV_ITEMS = [
   { id: "reminders", label: "Reminders", icon: "🔔" },
 ];
 
-// Pastel gradient for each day column
 const DAY_GRADIENTS = [
-  "rgba(244,167,195,0.10)", // Sun - pink
-  "rgba(180,151,245,0.10)", // Mon - lavender
-  "rgba(147,212,240,0.10)", // Tue - sky
-  "rgba(125,211,200,0.10)", // Wed - mint
-  "rgba(168,230,163,0.10)", // Thu - sage
-  "rgba(249,199,132,0.10)", // Fri - peach
-  "rgba(247,169,122,0.10)", // Sat - coral
+  "rgba(244,167,195,0.10)",
+  "rgba(180,151,245,0.10)",
+  "rgba(147,212,240,0.10)",
+  "rgba(125,211,200,0.10)",
+  "rgba(168,230,163,0.10)",
+  "rgba(249,199,132,0.10)",
+  "rgba(247,169,122,0.10)",
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -180,6 +177,104 @@ function useNotificationChecker(reminders: Reminder[]) {
   }, [reminders]);
 }
 
+// ─── Reminder Detail / Delete popup ──────────────────────────────────────────
+
+function ReminderDetailModal({
+  reminder,
+  onClose,
+  onDelete,
+}: {
+  reminder: Reminder;
+  onClose: () => void;
+  onDelete: (id: string) => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+
+  const handleDelete = () => {
+    if (!confirming) { setConfirming(true); return; }
+    onDelete(reminder.id);
+    onClose();
+  };
+
+  const c = reminder.color;
+  const bg = COLOR_BG[c] || c + "22";
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+      style={{ background: "rgba(30,16,48,0.55)", backdropFilter: "blur(4px)" }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        className="w-full max-w-sm rounded-3xl p-6 flex flex-col gap-4"
+        style={{
+          background: "linear-gradient(145deg, #fdf6ff 0%, #f3e8ff 100%)",
+          border: "1.5px solid #e8d9f5",
+          boxShadow: "0 20px 60px rgba(155,89,208,0.18)",
+        }}
+      >
+        {/* Colour header */}
+        <div
+          className="rounded-2xl px-4 py-4 flex items-center gap-3"
+          style={{ background: bg, border: `1.5px solid ${c}44` }}
+        >
+          <div className="w-4 h-4 rounded-full shrink-0" style={{ background: c, boxShadow: `0 2px 8px ${c}88` }} />
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-base truncate" style={{ color: "#1e1030" }}>{reminder.title}</p>
+            <p className="text-sm font-semibold mt-0.5" style={{ color: c }}>
+              {fmt12(reminder.time)} · {reminder.days.map((d) => DAY_SHORT[d]).join(", ")}
+            </p>
+          </div>
+        </div>
+
+        {/* Info rows */}
+        <div className="flex flex-col gap-2 px-1">
+          <div className="flex items-center gap-3">
+            <span className="text-base">🕐</span>
+            <span className="text-sm font-medium" style={{ color: "#1e1030" }}>
+              Time: <strong>{fmt12(reminder.time)}</strong>
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-base">📅</span>
+            <span className="text-sm font-medium" style={{ color: "#1e1030" }}>
+              Repeats: <strong>{reminder.days.map((d) => DAY_FULL[d]).join(", ")}</strong>
+            </span>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3 mt-1">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
+            style={{ background: "#f3e8ff", border: "1.5px solid #e8d9f5", color: "#7c6f8e" }}
+          >
+            Close
+          </button>
+          <button
+            onClick={handleDelete}
+            className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-all"
+            style={{
+              background: confirming
+                ? "linear-gradient(135deg, #f28b82, #e05c52)"
+                : "linear-gradient(135deg, #f4a7c3, #e07090)",
+              boxShadow: confirming ? "0 4px 14px #f28b8266" : "0 2px 8px #f4a7c366",
+            }}
+          >
+            {confirming ? "⚠️ Confirm delete" : "🗑️ Delete"}
+          </button>
+        </div>
+        {confirming && (
+          <p className="text-xs text-center font-medium" style={{ color: "#e05c52" }}>
+            Tap again to permanently delete this reminder
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Quick Add Modal ──────────────────────────────────────────────────────────
 
 function QuickAddModal({
@@ -218,7 +313,6 @@ function QuickAddModal({
           boxShadow: "0 20px 60px rgba(155,89,208,0.18)",
         }}
       >
-        {/* Header */}
         <div
           className="rounded-2xl px-4 py-3 flex items-center gap-3"
           style={{ background: COLOR_BG[color] || "#b497f530", border: `1.5px solid ${color}44` }}
@@ -232,7 +326,6 @@ function QuickAddModal({
           </div>
         </div>
 
-        {/* Minute picker */}
         <div className="flex flex-col gap-2">
           <label className="text-xs font-bold uppercase tracking-wider" style={{ color: "#7c6f8e" }}>Pick minute</label>
           <div className="grid grid-cols-6 gap-1.5">
@@ -254,7 +347,6 @@ function QuickAddModal({
           </div>
         </div>
 
-        {/* Title */}
         <input
           autoFocus
           type="text"
@@ -271,7 +363,6 @@ function QuickAddModal({
           }}
         />
 
-        {/* Color swatches */}
         <div className="flex gap-2 flex-wrap">
           {COLORS.map((c) => (
             <button
@@ -289,7 +380,6 @@ function QuickAddModal({
           ))}
         </div>
 
-        {/* Actions */}
         <div className="flex gap-3">
           <button
             onClick={onClose}
@@ -364,7 +454,6 @@ function AddReminderModal({ onClose, onAdd }: { onClose: () => void; onAdd: (r: 
           style={{ background: "#fdf6ff", border: `1.5px solid ${title ? color : "#e8d9f5"}`, color: "#1e1030" }}
         />
 
-        {/* Hour picker */}
         <div className="flex flex-col gap-2">
           <label className="text-xs font-bold uppercase tracking-wider" style={{ color: "#7c6f8e" }}>Hour</label>
           <div className="grid grid-cols-6 gap-1">
@@ -389,7 +478,6 @@ function AddReminderModal({ onClose, onAdd }: { onClose: () => void; onAdd: (r: 
           </div>
         </div>
 
-        {/* Minute picker */}
         <div className="flex flex-col gap-2">
           <label className="text-xs font-bold uppercase tracking-wider" style={{ color: "#7c6f8e" }}>Minute</label>
           <div className="grid grid-cols-6 gap-1.5">
@@ -411,7 +499,6 @@ function AddReminderModal({ onClose, onAdd }: { onClose: () => void; onAdd: (r: 
           </div>
         </div>
 
-        {/* Days */}
         <div className="flex flex-col gap-2">
           <label className="text-xs font-bold uppercase tracking-wider" style={{ color: "#7c6f8e" }}>Repeat on</label>
           <div className="flex gap-1.5">
@@ -433,7 +520,6 @@ function AddReminderModal({ onClose, onAdd }: { onClose: () => void; onAdd: (r: 
           </div>
         </div>
 
-        {/* Color */}
         <div className="flex gap-2 flex-wrap">
           {COLORS.map((c) => (
             <button
@@ -493,6 +579,9 @@ function WeekView({ data, onChange }: { data: AppData; onChange: (d: AppData) =>
     Array.from({ length: 7 }, (_, i) => addDays(monday, i)), [monday]);
 
   const [quickAdd, setQuickAdd] = useState<{ hour: number; days: number[] } | null>(null);
+  const [detailReminder, setDetailReminder] = useState<Reminder | null>(null);
+
+  const deleteReminder = (id: string) => onChange({ ...data, reminders: data.reminders.filter((r) => r.id !== id) });
 
   const remindersForDayHour = (dow: number, hour: number) =>
     data.reminders
@@ -508,7 +597,6 @@ function WeekView({ data, onChange }: { data: AppData; onChange: (d: AppData) =>
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Nav */}
       <div className="flex items-center justify-between">
         <button
           onClick={() => onChange({ ...data, weekOffset: data.weekOffset - 1 })}
@@ -531,12 +619,11 @@ function WeekView({ data, onChange }: { data: AppData; onChange: (d: AppData) =>
       </div>
 
       <p className="text-xs text-center font-medium" style={{ color: "#a98dc5" }}>
-        ✨ Tap any row to add a reminder — then pick the exact minute
+        ✨ Tap empty row to add · Tap a reminder chip to delete
       </p>
 
       <div className="overflow-x-auto -mx-4 px-4">
         <div className="min-w-[600px]">
-          {/* Day headers */}
           <div className="grid grid-cols-[3.5rem_repeat(7,1fr)] mb-1">
             <div />
             {days.map((day, i) => {
@@ -562,7 +649,6 @@ function WeekView({ data, onChange }: { data: AppData; onChange: (d: AppData) =>
             })}
           </div>
 
-          {/* Hour rows */}
           <div className="rounded-2xl overflow-hidden" style={{ border: "1.5px solid #e8d9f5", boxShadow: "0 4px 24px rgba(155,89,208,0.08)" }}>
             {HOURS.map((hour) => (
               <div
@@ -587,33 +673,41 @@ function WeekView({ data, onChange }: { data: AppData; onChange: (d: AppData) =>
                       className="relative p-1 border-l cursor-pointer group transition-colors"
                       style={{
                         borderColor: "#e8d9f5",
-                        background: isToday
-                          ? "rgba(180,151,245,0.10)"
-                          : DAY_GRADIENTS[dow],
+                        background: isToday ? "rgba(180,151,245,0.10)" : DAY_GRADIENTS[dow],
                       }}
                       onClick={() => setQuickAdd({ hour, days: [dow] })}
                     >
-                      {/* Hover overlay */}
-                      <div
-                        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none"
-                        style={{ background: "rgba(180,151,245,0.15)" }}
-                      >
-                        <span style={{ color: "#9b59d0", fontSize: "1.1rem", fontWeight: 800 }}>+</span>
-                      </div>
+                      {/* Hover overlay (only shows on empty space) */}
+                      {cellReminders.length === 0 && (
+                        <div
+                          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none"
+                          style={{ background: "rgba(180,151,245,0.15)" }}
+                        >
+                          <span style={{ color: "#9b59d0", fontSize: "1.1rem", fontWeight: 800 }}>+</span>
+                        </div>
+                      )}
 
                       {cellReminders.map((r) => (
                         <div
                           key={r.id}
-                          className="rounded-lg px-1.5 py-0.5 text-xs font-bold mb-0.5 truncate relative z-10"
+                          className="rounded-lg px-1.5 py-0.5 text-xs font-bold mb-0.5 truncate relative z-10 cursor-pointer group/chip flex items-center gap-1 transition-all"
                           style={{
                             background: COLOR_BG[r.color] || r.color + "33",
                             color: r.color,
                             border: `1px solid ${r.color}44`,
                           }}
-                          title={`${r.title} at ${fmt12(r.time)}`}
-                          onClick={(e) => e.stopPropagation()}
+                          title="Tap to view / delete"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDetailReminder(r);
+                          }}
                         >
-                          <span className="opacity-60 mr-0.5 text-[10px]">:{r.time.split(":")[1]}</span>{r.title}
+                          <span className="opacity-60 text-[10px] shrink-0">:{r.time.split(":")[1]}</span>
+                          <span className="truncate flex-1">{r.title}</span>
+                          <span
+                            className="opacity-0 group-hover/chip:opacity-100 shrink-0 text-[10px] font-black transition-opacity"
+                            style={{ color: r.color }}
+                          >✕</span>
                         </div>
                       ))}
                     </div>
@@ -636,6 +730,17 @@ function WeekView({ data, onChange }: { data: AppData; onChange: (d: AppData) =>
           }}
         />
       )}
+
+      {detailReminder && (
+        <ReminderDetailModal
+          reminder={detailReminder}
+          onClose={() => setDetailReminder(null)}
+          onDelete={(id) => {
+            deleteReminder(id);
+            setDetailReminder(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -646,6 +751,9 @@ function MonthView({ data, onChange }: { data: AppData; onChange: (d: AppData) =
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date(today));
   const [quickAdd, setQuickAdd] = useState<{ hour: number; days: number[] } | null>(null);
+  const [detailReminder, setDetailReminder] = useState<Reminder | null>(null);
+
+  const deleteReminder = (id: string) => onChange({ ...data, reminders: data.reminders.filter((r) => r.id !== id) });
 
   const { year, month } = useMemo(() => {
     const d = new Date(today.getFullYear(), today.getMonth() + data.monthOffset, 1);
@@ -688,7 +796,6 @@ function MonthView({ data, onChange }: { data: AppData; onChange: (d: AppData) =
         >›</button>
       </div>
 
-      {/* Day headers */}
       <div className="grid grid-cols-7 gap-1">
         {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d, i) => (
           <div
@@ -701,7 +808,6 @@ function MonthView({ data, onChange }: { data: AppData; onChange: (d: AppData) =
         ))}
       </div>
 
-      {/* Calendar grid */}
       <div className="grid grid-cols-7 gap-1.5">
         {Array.from({ length: startBlanks }).map((_, i) => <div key={`b${i}`} />)}
         {calDays.map((day) => {
@@ -752,7 +858,6 @@ function MonthView({ data, onChange }: { data: AppData; onChange: (d: AppData) =
         })}
       </div>
 
-      {/* Selected day detail */}
       {selectedDate && (
         <div
           className="rounded-2xl p-5"
@@ -779,16 +884,19 @@ function MonthView({ data, onChange }: { data: AppData; onChange: (d: AppData) =
           ) : (
             <div className="flex flex-col gap-2.5">
               {selectedReminders.map((r) => (
-                <div key={r.id} className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full shrink-0" style={{ background: r.color, boxShadow: `0 1px 4px ${r.color}88` }} />
-                  <span
-                    className="font-mono text-xs px-2 py-0.5 rounded-lg font-bold"
-                    style={{ background: COLOR_BG[r.color] || r.color + "22", color: r.color, border: `1px solid ${r.color}33` }}
-                  >
+                <button
+                  key={r.id}
+                  className="flex items-center gap-3 w-full text-left rounded-xl px-3 py-2 transition-all group"
+                  style={{ background: COLOR_BG[r.color] || r.color + "18", border: `1px solid ${r.color}33` }}
+                  onClick={() => setDetailReminder(r)}
+                >
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: r.color, boxShadow: `0 1px 4px ${r.color}88` }} />
+                  <span className="font-mono text-xs px-2 py-0.5 rounded-lg font-bold" style={{ background: r.color + "22", color: r.color }}>
                     {fmt12(r.time)}
                   </span>
                   <span className="flex-1 text-sm font-semibold" style={{ color: "#1e1030" }}>{r.title}</span>
-                </div>
+                  <span className="opacity-0 group-hover:opacity-100 text-xs font-bold transition-opacity" style={{ color: r.color }}>🗑️</span>
+                </button>
               ))}
             </div>
           )}
@@ -806,6 +914,17 @@ function MonthView({ data, onChange }: { data: AppData; onChange: (d: AppData) =
           }}
         />
       )}
+
+      {detailReminder && (
+        <ReminderDetailModal
+          reminder={detailReminder}
+          onClose={() => setDetailReminder(null)}
+          onDelete={(id) => {
+            deleteReminder(id);
+            setDetailReminder(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -814,6 +933,7 @@ function MonthView({ data, onChange }: { data: AppData; onChange: (d: AppData) =
 
 function RemindersPage({ data, onChange }: { data: AppData; onChange: (d: AppData) => void }) {
   const [showModal, setShowModal] = useState(false);
+  const [detailReminder, setDetailReminder] = useState<Reminder | null>(null);
 
   const deleteReminder = (id: string) =>
     onChange({ ...data, reminders: data.reminders.filter((r) => r.id !== id) });
@@ -840,7 +960,6 @@ function RemindersPage({ data, onChange }: { data: AppData; onChange: (d: AppDat
         </button>
       </div>
 
-      {/* Today's reminders */}
       {todayReminders.length > 0 && (
         <div
           className="rounded-2xl p-5"
@@ -855,16 +974,19 @@ function RemindersPage({ data, onChange }: { data: AppData; onChange: (d: AppDat
           </p>
           <div className="flex flex-col gap-2.5">
             {todayReminders.map((r) => (
-              <div key={r.id} className="flex items-center gap-3">
+              <button
+                key={r.id}
+                className="flex items-center gap-3 w-full text-left rounded-xl px-3 py-2 transition-all group"
+                style={{ background: COLOR_BG[r.color] || r.color + "18", border: `1px solid ${r.color}33` }}
+                onClick={() => setDetailReminder(r)}
+              >
                 <div className="w-3 h-3 rounded-full shrink-0" style={{ background: r.color, boxShadow: `0 1px 4px ${r.color}88` }} />
-                <span
-                  className="font-mono text-xs px-2 py-0.5 rounded-lg font-bold"
-                  style={{ background: COLOR_BG[r.color] || r.color + "22", color: r.color, border: `1px solid ${r.color}33` }}
-                >
+                <span className="font-mono text-xs px-2 py-0.5 rounded-lg font-bold" style={{ background: COLOR_BG[r.color] || r.color + "22", color: r.color, border: `1px solid ${r.color}33` }}>
                   {fmt12(r.time)}
                 </span>
                 <span className="flex-1 text-sm font-semibold" style={{ color: "#1e1030" }}>{r.title}</span>
-              </div>
+                <span className="opacity-0 group-hover:opacity-100 text-xs font-bold transition-opacity" style={{ color: r.color }}>🗑️</span>
+              </button>
             ))}
           </div>
         </div>
@@ -887,13 +1009,14 @@ function RemindersPage({ data, onChange }: { data: AppData; onChange: (d: AppDat
         <div className="flex flex-col gap-3">
           <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "#a98dc5" }}>All Reminders</p>
           {sorted.map((r) => (
-            <div
+            <button
               key={r.id}
-              className="flex items-center gap-4 px-4 py-3.5 rounded-2xl group transition-all"
+              className="flex items-center gap-4 px-4 py-3.5 rounded-2xl group transition-all w-full text-left"
               style={{
                 background: COLOR_BG[r.color] || r.color + "18",
                 border: `1.5px solid ${r.color}33`,
               }}
+              onClick={() => setDetailReminder(r)}
             >
               <div className="w-3 h-3 rounded-full shrink-0" style={{ background: r.color, boxShadow: `0 1px 5px ${r.color}99` }} />
               <div className="flex-1 min-w-0">
@@ -902,14 +1025,8 @@ function RemindersPage({ data, onChange }: { data: AppData; onChange: (d: AppDat
                   {fmt12(r.time)} · {r.days.map((d) => DAY_SHORT[d]).join(", ")}
                 </p>
               </div>
-              <button
-                onClick={() => deleteReminder(r.id)}
-                className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-opacity font-bold"
-                style={{ background: r.color + "22", color: r.color }}
-              >
-                ✕
-              </button>
-            </div>
+              <span className="opacity-0 group-hover:opacity-100 text-sm transition-opacity">🗑️</span>
+            </button>
           ))}
         </div>
       )}
@@ -918,6 +1035,17 @@ function RemindersPage({ data, onChange }: { data: AppData; onChange: (d: AppDat
         <AddReminderModal
           onClose={() => setShowModal(false)}
           onAdd={(r) => onChange({ ...data, reminders: [...data.reminders, r] })}
+        />
+      )}
+
+      {detailReminder && (
+        <ReminderDetailModal
+          reminder={detailReminder}
+          onClose={() => setDetailReminder(null)}
+          onDelete={(id) => {
+            deleteReminder(id);
+            setDetailReminder(null);
+          }}
         />
       )}
     </div>
