@@ -15,7 +15,7 @@ interface Reminder {
 
 interface AppData {
   reminders: Reminder[];
-  weekOffset: number;   // 0 = current week, -1 = last week, +1 = next week
+  weekOffset: number;
   monthOffset: number;
 }
 
@@ -62,7 +62,7 @@ function saveData(d: AppData) {
 function getMondayOf(date: Date): Date {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
-  const day = d.getDay(); // 0=Sun
+  const day = d.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   d.setDate(d.getDate() + diff);
   return d;
@@ -72,10 +72,6 @@ function addDays(date: Date, n: number): Date {
   const d = new Date(date);
   d.setDate(d.getDate() + n);
   return d;
-}
-
-function isoDate(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function sameDay(a: Date, b: Date) {
@@ -91,20 +87,121 @@ function fmt12(time: string) {
   return `${hour}:${String(m).padStart(2, "0")}${ampm}`;
 }
 
-// ─── Add Reminder Modal ───────────────────────────────────────────────────────
+function hourToTime(hour: number): string {
+  return `${String(hour).padStart(2, "0")}:00`;
+}
+
+// ─── Quick Add Modal — title + color only, time & days pre-filled ─────────────
+
+function QuickAddModal({
+  onClose,
+  onAdd,
+  prefillTime,
+  prefillDays,
+}: {
+  onClose: () => void;
+  onAdd: (r: Reminder) => void;
+  prefillTime: string;
+  prefillDays: number[];
+}) {
+  const [title, setTitle] = useState("");
+  const [color, setColor] = useState(COLORS[0]);
+
+  const handleAdd = () => {
+    if (!title.trim()) return;
+    onAdd({ id: uid(), title: title.trim(), time: prefillTime, days: prefillDays, color });
+    onClose();
+  };
+
+  const displayDays = prefillDays.map((d) => DAY_FULL[d]).join(", ");
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.5)" }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl p-6 flex flex-col gap-5"
+        style={{ background: "var(--paper)", border: "1px solid var(--line)" }}
+      >
+        {/* Header with time badge */}
+        <div className="flex items-center gap-3">
+          <div
+            className="px-3 py-1.5 rounded-xl text-sm font-bold font-mono"
+            style={{ background: "var(--accent)18", color: "var(--accent)" }}
+          >
+            {fmt12(prefillTime)}
+          </div>
+          <div>
+            <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>Add Reminder</p>
+            <p className="text-xs" style={{ color: "var(--muted)" }}>{displayDays}</p>
+          </div>
+        </div>
+
+        {/* Title only */}
+        <input
+          autoFocus
+          type="text"
+          placeholder="What to do at this time?"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+          className="w-full px-4 py-3 rounded-xl text-sm outline-none font-medium"
+          style={{ background: "var(--panel)", border: "1px solid var(--line)", color: "var(--ink)" }}
+        />
+
+        {/* Color */}
+        <div className="flex gap-2 flex-wrap">
+          {COLORS.map((c) => (
+            <button
+              key={c}
+              onClick={() => setColor(c)}
+              className="w-7 h-7 rounded-full transition-transform"
+              style={{
+                background: c,
+                outline: color === c ? `3px solid ${c}` : "none",
+                outlineOffset: "2px",
+                transform: color === c ? "scale(1.2)" : "scale(1)",
+              }}
+            />
+          ))}
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
+            style={{ background: "var(--panel)", border: "1px solid var(--line)", color: "var(--ink)" }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleAdd}
+            disabled={!title.trim()}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40"
+            style={{ background: color }}
+          >
+            Add
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Full Add Reminder Modal (from reminders page) ────────────────────────────
 
 function AddReminderModal({
   onClose,
   onAdd,
-  initial,
 }: {
   onClose: () => void;
   onAdd: (r: Reminder) => void;
-  initial?: { days?: number[] };
 }) {
   const [title, setTitle] = useState("");
   const [time, setTime] = useState("09:00");
-  const [days, setDays] = useState<number[]>(initial?.days ?? [1, 2, 3, 4, 5]);
+  const [days, setDays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [color, setColor] = useState(COLORS[0]);
 
   const toggleDay = (d: number) =>
@@ -126,23 +223,18 @@ function AddReminderModal({
         className="w-full max-w-sm rounded-2xl p-6 flex flex-col gap-5"
         style={{ background: "var(--paper)", border: "1px solid var(--line)" }}
       >
-        <h2 className="text-lg font-bold" style={{ fontFamily: "Fraunces, serif" }}>
-          Add Reminder
-        </h2>
+        <h2 className="text-lg font-bold" style={{ fontFamily: "Fraunces, serif" }}>Add Reminder</h2>
 
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--muted)" }}>Title</label>
-          <input
-            autoFocus
-            type="text"
-            placeholder="e.g. Morning workout"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-            className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
-            style={{ background: "var(--panel)", border: "1px solid var(--line)", color: "var(--ink)" }}
-          />
-        </div>
+        <input
+          autoFocus
+          type="text"
+          placeholder="e.g. Morning workout"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+          className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+          style={{ background: "var(--panel)", border: "1px solid var(--line)", color: "var(--ink)" }}
+        />
 
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--muted)" }}>Time</label>
@@ -175,26 +267,23 @@ function AddReminderModal({
           </div>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--muted)" }}>Color</label>
-          <div className="flex gap-2 flex-wrap">
-            {COLORS.map((c) => (
-              <button
-                key={c}
-                onClick={() => setColor(c)}
-                className="w-7 h-7 rounded-full transition-transform"
-                style={{
-                  background: c,
-                  outline: color === c ? `3px solid ${c}` : "none",
-                  outlineOffset: "2px",
-                  transform: color === c ? "scale(1.15)" : "scale(1)",
-                }}
-              />
-            ))}
-          </div>
+        <div className="flex gap-2 flex-wrap">
+          {COLORS.map((c) => (
+            <button
+              key={c}
+              onClick={() => setColor(c)}
+              className="w-7 h-7 rounded-full transition-transform"
+              style={{
+                background: c,
+                outline: color === c ? `3px solid ${c}` : "none",
+                outlineOffset: "2px",
+                transform: color === c ? "scale(1.15)" : "scale(1)",
+              }}
+            />
+          ))}
         </div>
 
-        <div className="flex gap-3 pt-1">
+        <div className="flex gap-3">
           <button
             onClick={onClose}
             className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
@@ -221,8 +310,7 @@ function AddReminderModal({
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 6); // 6am–10pm
 
 function WeekView({ data, onChange }: { data: AppData; onChange: (d: AppData) => void }) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
 
   const monday = useMemo(() => {
     const m = getMondayOf(new Date());
@@ -230,62 +318,58 @@ function WeekView({ data, onChange }: { data: AppData; onChange: (d: AppData) =>
     return m;
   }, [data.weekOffset]);
 
-  // Mon–Sun columns
   const days = useMemo(() =>
-    Array.from({ length: 7 }, (_, i) => addDays(monday, i)),
-    [monday]
-  );
+    Array.from({ length: 7 }, (_, i) => addDays(monday, i)), [monday]);
 
-  const [showModal, setShowModal] = useState(false);
-  const [modalDays, setModalDays] = useState<number[]>([]);
+  // Quick-add state
+  const [quickAdd, setQuickAdd] = useState<{ time: string; days: number[] } | null>(null);
 
-  const remindersForDay = (dow: number) =>
+  const remindersForDayHour = (dow: number, hour: number) =>
     data.reminders
-      .filter((r) => r.days.includes(dow))
+      .filter((r) => r.days.includes(dow) && parseInt(r.time.split(":")[0]) === hour)
       .sort((a, b) => a.time.localeCompare(b.time));
 
   const weekLabel = useMemo(() => {
     const end = addDays(monday, 6);
     const sameMonth = monday.getMonth() === end.getMonth();
-    if (sameMonth) {
-      return `${MONTH_NAMES[monday.getMonth()]} ${monday.getDate()}–${end.getDate()}, ${monday.getFullYear()}`;
-    }
+    if (sameMonth) return `${MONTH_NAMES[monday.getMonth()]} ${monday.getDate()}–${end.getDate()}, ${monday.getFullYear()}`;
     return `${MONTH_NAMES[monday.getMonth()].slice(0,3)} ${monday.getDate()} – ${MONTH_NAMES[end.getMonth()].slice(0,3)} ${end.getDate()}, ${end.getFullYear()}`;
   }, [monday]);
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Nav row */}
+      {/* Nav */}
       <div className="flex items-center justify-between">
         <button
           onClick={() => onChange({ ...data, weekOffset: data.weekOffset - 1 })}
-          className="w-9 h-9 rounded-xl flex items-center justify-center text-lg font-bold transition-colors"
+          className="w-9 h-9 rounded-xl flex items-center justify-center text-lg font-bold"
           style={{ background: "var(--panel)", border: "1px solid var(--line)", color: "var(--ink)" }}
         >‹</button>
         <div className="text-center">
           <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>{weekLabel}</p>
           {data.weekOffset !== 0 && (
-            <button
-              onClick={() => onChange({ ...data, weekOffset: 0 })}
-              className="text-xs font-medium mt-0.5"
-              style={{ color: "var(--accent)" }}
-            >
+            <button onClick={() => onChange({ ...data, weekOffset: 0 })} className="text-xs font-medium mt-0.5" style={{ color: "var(--accent)" }}>
               Back to today
             </button>
           )}
         </div>
         <button
           onClick={() => onChange({ ...data, weekOffset: data.weekOffset + 1 })}
-          className="w-9 h-9 rounded-xl flex items-center justify-center text-lg font-bold transition-colors"
+          className="w-9 h-9 rounded-xl flex items-center justify-center text-lg font-bold"
           style={{ background: "var(--panel)", border: "1px solid var(--line)", color: "var(--ink)" }}
         >›</button>
       </div>
 
-      {/* Calendar grid */}
+      {/* Hint */}
+      <p className="text-xs text-center" style={{ color: "var(--muted)" }}>
+        Tap any time slot to add a reminder instantly
+      </p>
+
+      {/* Grid */}
       <div className="overflow-x-auto -mx-4 px-4">
-        <div className="min-w-[640px]">
+        <div className="min-w-[600px]">
           {/* Day headers */}
-          <div className="grid grid-cols-[3.5rem_repeat(7,1fr)] mb-2 gap-px">
+          <div className="grid grid-cols-[3.5rem_repeat(7,1fr)] mb-1 gap-px">
             <div />
             {days.map((day, i) => {
               const isToday = sameDay(day, today);
@@ -296,7 +380,7 @@ function WeekView({ data, onChange }: { data: AppData; onChange: (d: AppData) =>
                     {DAY_FULL[dow].slice(0, 3)}
                   </p>
                   <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center mx-auto mt-1 text-sm font-bold"
+                    className="w-8 h-8 rounded-full flex items-center justify-center mx-auto mt-1 text-sm font-bold"
                     style={{
                       background: isToday ? "var(--accent)" : "transparent",
                       color: isToday ? "#fff" : "var(--ink)",
@@ -310,50 +394,52 @@ function WeekView({ data, onChange }: { data: AppData; onChange: (d: AppData) =>
           </div>
 
           {/* Hour rows */}
-          <div
-            className="rounded-2xl overflow-hidden"
-            style={{ border: "1px solid var(--line)" }}
-          >
+          <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid var(--line)" }}>
             {HOURS.map((hour) => (
               <div
                 key={hour}
                 className="grid grid-cols-[3.5rem_repeat(7,1fr)] border-b last:border-b-0"
-                style={{ borderColor: "var(--line)", minHeight: "3rem" }}
+                style={{ borderColor: "var(--line)", minHeight: "3.25rem" }}
               >
                 {/* Hour label */}
                 <div
-                  className="flex items-start justify-end pr-3 pt-2 text-xs font-mono shrink-0"
+                  className="flex items-start justify-end pr-2 pt-2 text-xs font-mono shrink-0 select-none"
                   style={{ color: "var(--muted)", borderRight: "1px solid var(--line)" }}
                 >
                   {hour === 12 ? "12pm" : hour > 12 ? `${hour - 12}pm` : `${hour}am`}
                 </div>
 
-                {/* Day cells */}
+                {/* Day cells — tap to quick-add */}
                 {days.map((day, colIdx) => {
                   const dow = day.getDay();
                   const isToday = sameDay(day, today);
-                  const cellReminders = remindersForDay(dow).filter(
-                    (r) => parseInt(r.time.split(":")[0]) === hour
-                  );
+                  const cellReminders = remindersForDayHour(dow, hour);
                   return (
                     <div
                       key={colIdx}
-                      className="relative p-1 border-l cursor-pointer group"
+                      className="relative p-1 border-l cursor-pointer transition-colors"
                       style={{
                         borderColor: "var(--line)",
                         background: isToday ? "var(--accent)08" : "transparent",
                       }}
-                      onClick={() => {
-                        setModalDays([dow]);
-                        setShowModal(true);
-                      }}
+                      onClick={() => setQuickAdd({ time: hourToTime(hour), days: [dow] })}
+                      title={`Add reminder at ${fmt12(hourToTime(hour))} on ${DAY_FULL[dow]}`}
                     >
+                      {/* Hover overlay */}
+                      <div
+                        className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center text-lg pointer-events-none rounded"
+                        style={{ background: "var(--accent)10" }}
+                      >
+                        <span style={{ color: "var(--accent)", fontSize: "1rem" }}>+</span>
+                      </div>
+
                       {cellReminders.map((r) => (
                         <div
                           key={r.id}
-                          className="rounded-lg px-2 py-1 text-xs font-semibold text-white mb-0.5 truncate"
+                          className="rounded-lg px-1.5 py-0.5 text-xs font-semibold text-white mb-0.5 truncate relative z-10"
                           style={{ background: r.color }}
                           title={`${r.title} at ${fmt12(r.time)}`}
+                          onClick={(e) => e.stopPropagation()}
                         >
                           {r.title}
                         </div>
@@ -367,11 +453,15 @@ function WeekView({ data, onChange }: { data: AppData; onChange: (d: AppData) =>
         </div>
       </div>
 
-      {showModal && (
-        <AddReminderModal
-          onClose={() => setShowModal(false)}
-          onAdd={(r) => onChange({ ...data, reminders: [...data.reminders, r] })}
-          initial={{ days: modalDays }}
+      {quickAdd && (
+        <QuickAddModal
+          prefillTime={quickAdd.time}
+          prefillDays={quickAdd.days}
+          onClose={() => setQuickAdd(null)}
+          onAdd={(r) => {
+            onChange({ ...data, reminders: [...data.reminders, r] });
+            setQuickAdd(null);
+          }}
         />
       )}
     </div>
@@ -381,11 +471,9 @@ function WeekView({ data, onChange }: { data: AppData; onChange: (d: AppData) =>
 // ─── Month View ───────────────────────────────────────────────────────────────
 
 function MonthView({ data, onChange }: { data: AppData; onChange: (d: AppData) => void }) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
+  const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date(today));
-  const [showModal, setShowModal] = useState(false);
+  const [quickAdd, setQuickAdd] = useState<{ time: string; days: number[] } | null>(null);
 
   const { year, month } = useMemo(() => {
     const d = new Date(today.getFullYear(), today.getMonth() + data.monthOffset, 1);
@@ -393,22 +481,17 @@ function MonthView({ data, onChange }: { data: AppData; onChange: (d: AppData) =
   }, [data.monthOffset, today]);
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDow = new Date(year, month, 1).getDay(); // 0=Sun
-
-  // Shift so Monday is first column (0=Mon … 6=Sun)
+  const firstDow = new Date(year, month, 1).getDay();
   const startBlanks = firstDow === 0 ? 6 : firstDow - 1;
 
   const calDays = useMemo(() =>
     Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1)),
-    [year, month, daysInMonth]
-  );
+    [year, month, daysInMonth]);
 
   const remindersForDow = (dow: number) =>
     data.reminders.filter((r) => r.days.includes(dow)).sort((a, b) => a.time.localeCompare(b.time));
 
-  const selectedReminders = selectedDate
-    ? remindersForDow(selectedDate.getDay())
-    : [];
+  const selectedReminders = selectedDate ? remindersForDow(selectedDate.getDay()) : [];
 
   return (
     <div className="flex flex-col gap-5">
@@ -420,15 +503,9 @@ function MonthView({ data, onChange }: { data: AppData; onChange: (d: AppData) =
           style={{ background: "var(--panel)", border: "1px solid var(--line)", color: "var(--ink)" }}
         >‹</button>
         <div className="text-center">
-          <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>
-            {MONTH_NAMES[month]} {year}
-          </p>
+          <p className="text-sm font-bold" style={{ color: "var(--ink)" }}>{MONTH_NAMES[month]} {year}</p>
           {data.monthOffset !== 0 && (
-            <button
-              onClick={() => onChange({ ...data, monthOffset: 0 })}
-              className="text-xs font-medium mt-0.5"
-              style={{ color: "var(--accent)" }}
-            >
+            <button onClick={() => onChange({ ...data, monthOffset: 0 })} className="text-xs font-medium mt-0.5" style={{ color: "var(--accent)" }}>
               Back to today
             </button>
           )}
@@ -440,12 +517,10 @@ function MonthView({ data, onChange }: { data: AppData; onChange: (d: AppData) =
         >›</button>
       </div>
 
-      {/* Day-of-week headers — Mon first */}
+      {/* Day headers — Mon first */}
       <div className="grid grid-cols-7 gap-1">
         {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d) => (
-          <div key={d} className="text-center text-xs font-bold uppercase tracking-wider py-1" style={{ color: "var(--muted)" }}>
-            {d}
-          </div>
+          <div key={d} className="text-center text-xs font-bold uppercase tracking-wider py-1" style={{ color: "var(--muted)" }}>{d}</div>
         ))}
       </div>
 
@@ -457,44 +532,35 @@ function MonthView({ data, onChange }: { data: AppData; onChange: (d: AppData) =
           const hasReminders = remindersForDow(dow).length > 0;
           const isToday = sameDay(day, today);
           const isSelected = selectedDate ? sameDay(day, selectedDate) : false;
-          const dayReminders = remindersForDow(dow).slice(0, 3);
+          const dayReminders = remindersForDow(dow).slice(0, 2);
 
           return (
             <button
               key={day.toISOString()}
               onClick={() => setSelectedDate(isSelected ? null : day)}
-              className="rounded-xl p-1.5 flex flex-col items-center gap-0.5 transition-all min-h-[4rem]"
+              className="rounded-xl p-1 flex flex-col items-center gap-0.5 transition-all min-h-[3.5rem]"
               style={{
-                background: isSelected
-                  ? "var(--accent)"
-                  : isToday
-                  ? "var(--accent)15"
-                  : "var(--panel)",
+                background: isSelected ? "var(--accent)" : isToday ? "var(--accent)15" : "var(--panel)",
                 border: `1.5px solid ${isSelected ? "var(--accent)" : isToday ? "var(--accent)" : "var(--line)"}`,
               }}
             >
-              <span
-                className="text-sm font-bold"
-                style={{ color: isSelected ? "#fff" : isToday ? "var(--accent)" : "var(--ink)" }}
-              >
+              <span className="text-sm font-bold" style={{ color: isSelected ? "#fff" : isToday ? "var(--accent)" : "var(--ink)" }}>
                 {day.getDate()}
               </span>
-              <div className="flex flex-col gap-0.5 w-full">
-                {dayReminders.map((r) => (
-                  <div
-                    key={r.id}
-                    className="w-full rounded text-white text-center leading-tight"
-                    style={{ background: isSelected ? "rgba(255,255,255,0.3)" : r.color, fontSize: "9px", padding: "1px 2px" }}
-                  >
-                    {r.title.length > 8 ? r.title.slice(0, 7) + "…" : r.title}
-                  </div>
-                ))}
-                {hasReminders && remindersForDow(dow).length > 3 && (
-                  <div className="text-center" style={{ fontSize: "9px", color: isSelected ? "rgba(255,255,255,0.7)" : "var(--muted)" }}>
-                    +{remindersForDow(dow).length - 3} more
-                  </div>
-                )}
-              </div>
+              {dayReminders.map((r) => (
+                <div
+                  key={r.id}
+                  className="w-full rounded text-white text-center leading-tight"
+                  style={{ background: isSelected ? "rgba(255,255,255,0.3)" : r.color, fontSize: "9px", padding: "1px 3px" }}
+                >
+                  {r.title.length > 7 ? r.title.slice(0, 6) + "…" : r.title}
+                </div>
+              ))}
+              {hasReminders && remindersForDow(dow).length > 2 && (
+                <div style={{ fontSize: "9px", color: isSelected ? "rgba(255,255,255,0.7)" : "var(--muted)" }}>
+                  +{remindersForDow(dow).length - 2}
+                </div>
+              )}
             </button>
           );
         })}
@@ -502,18 +568,13 @@ function MonthView({ data, onChange }: { data: AppData; onChange: (d: AppData) =
 
       {/* Selected day detail */}
       {selectedDate && (
-        <div
-          className="rounded-2xl p-5"
-          style={{ background: "var(--panel)", border: "1px solid var(--line)" }}
-        >
+        <div className="rounded-2xl p-5" style={{ background: "var(--panel)", border: "1px solid var(--line)" }}>
           <div className="flex items-center justify-between mb-4">
             <p className="font-bold" style={{ fontFamily: "Fraunces, serif" }}>
               {DAY_FULL[selectedDate.getDay()]}, {MONTH_NAMES[selectedDate.getMonth()]} {selectedDate.getDate()}
             </p>
             <button
-              onClick={() => {
-                setShowModal(true);
-              }}
+              onClick={() => setQuickAdd({ time: "09:00", days: [selectedDate.getDay()] })}
               className="text-xs px-3 py-1.5 rounded-lg font-semibold text-white"
               style={{ background: "var(--accent)" }}
             >
@@ -538,11 +599,15 @@ function MonthView({ data, onChange }: { data: AppData; onChange: (d: AppData) =
         </div>
       )}
 
-      {showModal && (
-        <AddReminderModal
-          onClose={() => setShowModal(false)}
-          onAdd={(r) => onChange({ ...data, reminders: [...data.reminders, r] })}
-          initial={{ days: selectedDate ? [selectedDate.getDay()] : undefined }}
+      {quickAdd && (
+        <QuickAddModal
+          prefillTime={quickAdd.time}
+          prefillDays={quickAdd.days}
+          onClose={() => setQuickAdd(null)}
+          onAdd={(r) => {
+            onChange({ ...data, reminders: [...data.reminders, r] });
+            setQuickAdd(null);
+          }}
         />
       )}
     </div>
@@ -554,13 +619,10 @@ function MonthView({ data, onChange }: { data: AppData; onChange: (d: AppData) =
 function RemindersPage({ data, onChange }: { data: AppData; onChange: (d: AppData) => void }) {
   const [showModal, setShowModal] = useState(false);
 
-  const deleteReminder = (id: string) => {
+  const deleteReminder = (id: string) =>
     onChange({ ...data, reminders: data.reminders.filter((r) => r.id !== id) });
-  };
 
   const sorted = [...data.reminders].sort((a, b) => a.time.localeCompare(b.time));
-
-  // Today's reminders
   const todayDow = new Date().getDay();
   const todayReminders = sorted.filter((r) => r.days.includes(todayDow));
 
@@ -582,12 +644,8 @@ function RemindersPage({ data, onChange }: { data: AppData; onChange: (d: AppDat
         </button>
       </div>
 
-      {/* Today banner */}
       {todayReminders.length > 0 && (
-        <div
-          className="rounded-2xl p-5"
-          style={{ background: "var(--accent)12", border: "1.5px solid var(--accent)33" }}
-        >
+        <div className="rounded-2xl p-5" style={{ background: "var(--accent)12", border: "1.5px solid var(--accent)33" }}>
           <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: "var(--accent)" }}>
             Today — {DAY_FULL[todayDow]}
           </p>
@@ -605,18 +663,13 @@ function RemindersPage({ data, onChange }: { data: AppData; onChange: (d: AppDat
         </div>
       )}
 
-      {/* All reminders */}
       {sorted.length === 0 ? (
         <div className="text-center py-20" style={{ color: "var(--muted)" }}>
           <div className="text-5xl mb-4">🔔</div>
           <p className="font-bold text-base" style={{ color: "var(--ink)", fontFamily: "Fraunces, serif" }}>No reminders yet</p>
-          <p className="text-sm mt-1 mb-6">Add something to stay on schedule</p>
-          <button
-            onClick={() => setShowModal(true)}
-            className="px-6 py-3 rounded-xl text-sm font-semibold text-white"
-            style={{ background: "var(--accent)" }}
-          >
-            + Add First Reminder
+          <p className="text-sm mt-1 mb-6">Go to the Week view and tap any time slot</p>
+          <button onClick={() => setShowModal(true)} className="px-6 py-3 rounded-xl text-sm font-semibold text-white" style={{ background: "var(--accent)" }}>
+            + Add Reminder
           </button>
         </div>
       ) : (
@@ -663,7 +716,6 @@ function RemindersPage({ data, onChange }: { data: AppData; onChange: (d: AppDat
 export default function App() {
   const [data, setData] = useState<AppData>(loadData);
   const [page, setPage] = useState<NavPage>("week");
-  const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "default") {
@@ -683,30 +735,9 @@ export default function App() {
       activeNav={page}
       onNavChange={(id) => setPage(id as NavPage)}
     >
-      {/* Floating add button on week/month views */}
-      {page !== "reminders" && (
-        <div className="fixed bottom-24 right-6 md:bottom-8 md:right-8 z-40">
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl text-white transition-transform active:scale-95"
-            style={{ background: "var(--accent)", boxShadow: "0 4px 24px var(--accent)55" }}
-            title="Add reminder"
-          >
-            +
-          </button>
-        </div>
-      )}
-
       {page === "week" && <WeekView data={data} onChange={handleChange} />}
       {page === "month" && <MonthView data={data} onChange={handleChange} />}
       {page === "reminders" && <RemindersPage data={data} onChange={handleChange} />}
-
-      {showAddModal && (
-        <AddReminderModal
-          onClose={() => setShowAddModal(false)}
-          onAdd={(r) => handleChange({ ...data, reminders: [...data.reminders, r] })}
-        />
-      )}
     </Shell>
   );
 }
